@@ -137,7 +137,7 @@ Ta sama płatność jest sprawdzana nie częściej niż co 30 sekund. W Gateway 
 
 ### 7.3 Ponowienie płatności
 
-Gdy klient ponowi nieudaną płatność na stronie Paynow, powstaje nowy `paymentId` z tym samym `externalId`. Nowy `paymentId` przejmuje zamówienie, gdy poprzednia próba jest nieudana albo gdy przychodzi od razu jako `CONFIRMED`. Spóźnione statusy innych prób są ignorowane.
+Gdy klient ponowi nieudaną płatność na stronie Paynow, powstaje nowy `paymentId` z tym samym `externalId`. Według Paynow ponowienie jest możliwe dopiero po odrzuceniu poprzedniej próby: kupujący dostaje e-mail o płatności ze statusem `REJECTED`, a po jej ponowieniu kolejny e-mail o zarejestrowaniu nowej płatności. Nowy `paymentId` przejmuje zamówienie, gdy poprzednia próba jest nieudana albo gdy przychodzi od razu jako `CONFIRMED`. Spóźnione statusy innych prób są ignorowane.
 
 Status `CONFIRMED` jest zapisywany dopiero po zaksięgowaniu wpłaty — gdy księgowanie się nie uda, ponowione powiadomienie spróbuje jeszcze raz. Druga potwierdzona płatność za to samo zamówienie jest księgowana (nadpłata trafia na kredyt klienta) i dostaje własny wpis, więc można ją zwrócić.
 
@@ -152,6 +152,8 @@ Zwrot z WHMCS wywołuje `POST /v3/payments/{paymentId}/refunds`. Moduł:
 - odmawia zwrotu płatności z innego środowiska niż aktywne.
 
 Odpowiedź `NEW`/`PENDING` oznacza przyjęcie zlecenia; ostateczny status widać w panelu Paynow.
+
+Paynow nie usuwa kluczy `Idempotency-Key` — zapytanie z tym samym kluczem może zostać bezpiecznie ponowione nawet po długim czasie i nie zostanie wykonane drugi raz. Dlatego ponowienie zwrotu o nieznanym wyniku jest bezpieczne niezależnie od upływu czasu.
 
 ### 7.5 Tabela `mod_paynow_payments`
 
@@ -226,6 +228,7 @@ Zdarzenia są w **Billing → Gateway Log** (filtr: Paynow).
 - Faktury w statusie „Payment Pending” nie mogą być opłacane przez Paynow.
 - Status zwrotu po zleceniu nie jest śledzony w WHMCS — ostateczny status widać w panelu Paynow.
 - Teksty modułu są po polsku.
+- Gdy powiadomienia w ogóle nie docierają, a klient ponowi płatność na stronie Paynow, moduł zna tylko identyfikator pierwszej (odrzuconej) próby. Ponowiona płatność zostanie wtedy zaksięgowana dopiero po dotarciu powiadomienia — powrót klienta i cron jej nie wykryją. Przy poprawnie ustawionym adresie powiadomień ten przypadek nie występuje.
 - Zwroty wykonane przed aktualizacją do 1.0.0 nie są wliczane do limitu zwrotów (moduł o nich nie wie).
 - Klasy przycisku (`btn btn-primary paynow-submit-btn`) mogą wymagać dostosowania do szablonu.
 
